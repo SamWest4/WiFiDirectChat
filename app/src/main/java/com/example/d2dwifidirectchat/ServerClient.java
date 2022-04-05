@@ -25,6 +25,7 @@ public class ServerClient extends Thread{
     private InputStream inStream;
     private OutputStream outStream;
 
+    //Constructor for client
     public ServerClient(InetAddress hostAdd, TextView messagesBox){
         isServer = false;
         hostAddress = hostAdd.getHostAddress();
@@ -32,7 +33,7 @@ public class ServerClient extends Thread{
         messageText =messagesBox;
     }
 
-    //If isHost
+    //Constructor for server
     public ServerClient(TextView messagesBox){
         isServer = true;
         messageText = messagesBox;
