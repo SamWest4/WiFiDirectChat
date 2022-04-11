@@ -2,12 +2,24 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.d2dwifidirectchat">
 
-    <uses-permission android:required="true" android:name="android.permission.ACCESS_FINE_LOCATION"/>
-    <uses-permission android:required="true" android:name="android.permission.ACCESS_WIFI_STATE"/>
-    <uses-permission android:required="true" android:name="android.permission.CHANGE_WIFI_STATE"/>
-    <uses-permission android:required="true" android:name="android.permission.INTERNET"/>
-    <uses-permission android:required="true" android:name="android.permission.CHANGE_NETWORK_STATE" />
-    <uses-permission android:required="true" android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission
+        android:name="android.permission.ACCESS_FINE_LOCATION"
+        android:required="true" />
+    <uses-permission
+        android:name="android.permission.ACCESS_WIFI_STATE"
+        android:required="true" />
+    <uses-permission
+        android:name="android.permission.CHANGE_WIFI_STATE"
+        android:required="true" />
+    <uses-permission
+        android:name="android.permission.INTERNET"
+        android:required="true" />
+    <uses-permission
+        android:name="android.permission.CHANGE_NETWORK_STATE"
+        android:required="true" />
+    <uses-permission
+        android:name="android.permission.ACCESS_NETWORK_STATE"
+        android:required="true" />
 
     <application
         android:allowBackup="true"
@@ -16,6 +28,9 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.D2dWifiDirectChat">
+        <activity
+            android:name=".ChatActivity"
+            android:exported="false" />
         <activity
             android:name=".MainActivity"
             android:exported="true">

@@ -13,6 +13,7 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
 import android.content.IntentFilter;
 
 import android.content.pm.PackageManager;
@@ -49,11 +50,9 @@ public class MainActivity extends AppCompatActivity {
 
     Activity act;
 
-    TextView connectionStatus, messageText;
+    TextView connectionStatus;
     Button scanButton;
     RecyclerView devicesView;
-    EditText typeMessage;
-    ImageButton sendButton;
 
 
     WifiP2pManager manager;
@@ -64,12 +63,6 @@ public class MainActivity extends AppCompatActivity {
 
     ArrayList<WifiP2pDevice> availableDevices = new ArrayList<WifiP2pDevice>();
     AvailableDevicesAdapter adapter;
-
-    //Socket socket;
-    //ServerClass serverClass;
-    //ClientClass clientClass;
-    ServerClient serverClient;
-    Boolean isHost;
 
 
     @Override
@@ -112,33 +105,12 @@ public class MainActivity extends AppCompatActivity {
                 });
             }
         });
-
-        sendButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                ExecutorService executor = Executors.newSingleThreadExecutor();
-                String messageToSend = typeMessage.getText().toString();
-                executor.execute(new Runnable() {
-                    @Override
-                    public void run() {
-                        if( messageToSend != null && isHost){
-                            serverClient.write(messageToSend.getBytes(StandardCharsets.UTF_8));
-                        } else if( messageToSend != null && !isHost){
-                            serverClient.write(messageToSend.getBytes(StandardCharsets.UTF_8));
-                        }
-                    }
-                });
-            }
-        });
     }
 
     private void initComponents() {
         connectionStatus = findViewById(R.id.connection_status);
-        messageText = findViewById(R.id.message_view);
         scanButton = findViewById(R.id.scan_button);
         devicesView = findViewById(R.id.devices_view);
-        typeMessage = findViewById(R.id.edit_message_text);
-        sendButton = findViewById(R.id.image_button);
 
         act = this;
 
@@ -150,7 +122,6 @@ public class MainActivity extends AppCompatActivity {
             public void onItemClick(View view, int position) {
                 WifiP2pDevice device = availableDevices.get(position);
                 String name = device.deviceName;
-                //TODO: connect to phone
                 connectToPhone(device);
                 Toast.makeText(act, name + " was clicked!", Toast.LENGTH_SHORT).show();
             }
@@ -215,19 +186,17 @@ public class MainActivity extends AppCompatActivity {
         public void onConnectionInfoAvailable(WifiP2pInfo wifiP2pInfo) {
             final InetAddress groupOwnerAddress = wifiP2pInfo.groupOwnerAddress;
 
-            //Phone is host
-            if(wifiP2pInfo.groupFormed && wifiP2pInfo.isGroupOwner){
-                connectionStatus.setText("Host");
-                isHost = true;
-                serverClient = new ServerClient(messageText);
-                serverClient.start();
-            }
-            //Phone is client
-            else if(wifiP2pInfo.groupFormed){
-                connectionStatus.setText("Client");
-                isHost = false;
-                serverClient = new ServerClient(groupOwnerAddress, messageText);
-                serverClient.start();
+            if(wifiP2pInfo.groupFormed){
+                //Switch to chat activity
+                //Pass isHost and group owner address
+                Log.d("p2p1", String.valueOf(wifiP2pInfo.isGroupOwner));
+                Log.d("p2p1", groupOwnerAddress.getHostAddress());
+                Intent myIntent = new Intent(act, ChatActivity.class);
+                myIntent.putExtra("isHost", wifiP2pInfo.isGroupOwner);
+                myIntent.putExtra("hostAddress", groupOwnerAddress.getHostAddress());
+                act.startActivity(myIntent);
+
+
             }
         }
     };

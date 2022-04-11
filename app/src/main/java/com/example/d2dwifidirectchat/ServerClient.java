@@ -3,6 +3,7 @@ package com.example.d2dwifidirectchat;
 import android.app.Activity;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.widget.TextView;
 
 import java.io.IOException;
@@ -12,6 +13,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -21,27 +23,47 @@ public class ServerClient extends Thread{
     Boolean isServer;
     Socket socket;
     ServerSocket servSocket;
-    TextView messageText;
+    //TextView messageText;
     private InputStream inStream;
     private OutputStream outStream;
 
-    //Constructor for client
-    public ServerClient(InetAddress hostAdd, TextView messagesBox){
-        isServer = false;
-        hostAddress = hostAdd.getHostAddress();
-        socket = new Socket();
-        messageText =messagesBox;
-    }
+    ArrayList<MessagePair> messages;
 
     //Constructor for server
-    public ServerClient(TextView messagesBox){
+    public ServerClient(ArrayList<MessagePair> _messages){
         isServer = true;
-        messageText = messagesBox;
+        messages = _messages;
+        Log.d("p2p", "here11111!");
+    }
+
+    //Constructor for client
+    public ServerClient(String hostAdd, ArrayList<MessagePair> _messages){
+        isServer = false;
+        Log.d("p2p", "here!");
+        hostAddress = hostAdd;
+        socket = new Socket();
+        messages = _messages;
+    }
+
+    public interface messagesChangedListener {
+        public void onMessagesChangedListener();
+    }
+
+    private messagesChangedListener messagesChanged;
+
+    public void setMessagesChangedListener(messagesChangedListener mcl){
+        this.messagesChanged = mcl;
     }
 
     public void write(byte[] bytes){
         try {
-            outStream.write(bytes);
+            if(outStream != null){
+                outStream.write(bytes);
+                messagesChanged.onMessagesChangedListener();
+            }
+            else{
+                Log.d("p2p", "outstream is null");
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -54,7 +76,13 @@ public class ServerClient extends Thread{
                 servSocket = new ServerSocket(8888);
                 socket = servSocket.accept();
             } else{
-                socket.connect(new InetSocketAddress(hostAddress, 8888), 30000);
+                Log.d("p2p","Client trying to open socket");
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException e) {
+
+                }
+                socket.connect(new InetSocketAddress(hostAddress, 8888), 500);
             }
             inStream = socket.getInputStream();
             outStream = socket.getOutputStream();
@@ -73,7 +101,12 @@ public class ServerClient extends Thread{
 
                 while(socket != null){
                     try {
-                        bytes = inStream.read(buffer);
+                        if(inStream != null){
+                            bytes = inStream.read(buffer);
+                        }
+                        else{
+                            bytes = 0;
+                        }
                         if(bytes > 0 ){
                             int finalBytes = bytes;
                             handler.post(new Runnable() {
@@ -81,8 +114,11 @@ public class ServerClient extends Thread{
                                 public void run() {
                                     String bufferMessage = new String(buffer, 0, finalBytes);
 
-                                    //TODO: make proper chat interface here
-                                    messageText.setText(bufferMessage);
+
+                                    Log.d("P2P-message",bufferMessage);
+                                    MessagePair message = new MessagePair("User", bufferMessage);
+                                    messages.add(message);
+                                    messagesChanged.onMessagesChangedListener();
 
                                 }
                             });

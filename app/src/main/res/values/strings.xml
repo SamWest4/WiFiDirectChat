@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">D2dWifiDirectChat</string>
+    <string name="send_message_text"></string>
 </resources>
