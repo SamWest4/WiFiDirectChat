@@ -1,6 +1,7 @@
 package com.example.d2dwifidirectchat;
 
 import android.content.Context;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -53,8 +54,18 @@ public class ChatMessagesAdapter extends RecyclerView.Adapter<ChatMessagesAdapte
         TextView senderView = holder.messageSender;
         senderView.setText(message.sender);
 
+
         TextView messageView = holder.message;
         messageView.setText(message.message);
+
+        if(message.sender == "Me"){
+            senderView.setGravity(Gravity.RIGHT);
+            messageView.setGravity(Gravity.RIGHT);
+        }
+        else{
+            senderView.setGravity(Gravity.LEFT);
+            messageView.setGravity(Gravity.LEFT);
+        }
     }
 
     @Override

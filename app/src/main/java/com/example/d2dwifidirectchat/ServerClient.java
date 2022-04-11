@@ -9,6 +9,7 @@ import android.widget.TextView;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -78,11 +79,20 @@ public class ServerClient extends Thread{
             } else{
                 Log.d("p2p","Client trying to open socket");
                 try {
-                    Thread.sleep(500);
-                } catch (InterruptedException e) {
+                    Thread.sleep(600);
 
+                    try {
+                        socket.connect(new InetSocketAddress(hostAddress, 8888), 500);
+                    } catch (ConnectException e) {
+                        Log.d("p2p", "Failed to open socket, trying again");
+                        Thread.sleep(700);
+                        socket.connect(new InetSocketAddress(hostAddress, 8888), 500);
+                    }
+                }catch (InterruptedException e){
+                    Log.d("p2p", "Thread sleeps error");
                 }
-                socket.connect(new InetSocketAddress(hostAddress, 8888), 500);
+
+
             }
             inStream = socket.getInputStream();
             outStream = socket.getOutputStream();
@@ -114,12 +124,9 @@ public class ServerClient extends Thread{
                                 public void run() {
                                     String bufferMessage = new String(buffer, 0, finalBytes);
 
-
-                                    Log.d("P2P-message",bufferMessage);
-                                    MessagePair message = new MessagePair("User", bufferMessage);
-                                    messages.add(message);
+                                    MessagePair incomingMessage = new MessagePair(bufferMessage);
+                                    messages.add(incomingMessage);
                                     messagesChanged.onMessagesChangedListener();
-
                                 }
                             });
                         }

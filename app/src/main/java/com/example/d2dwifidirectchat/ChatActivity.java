@@ -16,6 +16,7 @@ import android.net.wifi.p2p.WifiP2pDevice;
 import android.net.wifi.p2p.WifiP2pGroup;
 import android.net.wifi.p2p.WifiP2pManager;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
@@ -50,6 +51,9 @@ public class ChatActivity extends AppCompatActivity {
 
     Activity thisAct;
     Context thisContext;
+
+    String deviceName;
+    Boolean isSecured;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -145,8 +149,11 @@ public class ChatActivity extends AppCompatActivity {
                     @Override
                     public void run() {
                         if( messageToSend != null) {
+                            String escapedMessage = messageToSend.replace("\'","\\'");
+                            MessagePair mPair =  new MessagePair(deviceName, escapedMessage);
+                            Log.d("p2p", mPair.toString());
                             messages.add(new MessagePair("Me", messageToSend));
-                            serverClient.write(messageToSend.getBytes(StandardCharsets.UTF_8));
+                            serverClient.write(mPair.toString().getBytes(StandardCharsets.UTF_8));
                         }
                     }
                 });
@@ -172,11 +179,15 @@ public class ChatActivity extends AppCompatActivity {
         messagesView = findViewById(R.id.messages_view);
         sendText = findViewById(R.id.message_text);
         sendButton = findViewById(R.id.send_button);
+        //sendButton.setEnabled(false);
         //disconnectButton = findViewById(R.id.disconnect_button);
 
         adapter = new ChatMessagesAdapter(messages);
         messagesView.setAdapter(adapter);
         messagesView.setLayoutManager(new LinearLayoutManager(this));
+
+        isSecured = false;
+        deviceName = Settings.Global.getString(getContentResolver(), "device_name");
 
         //manager = (WifiP2pManager) getSystemService(Context.WIFI_P2P_SERVICE);
         //channel = manager.initialize(this, getMainLooper(), null);
