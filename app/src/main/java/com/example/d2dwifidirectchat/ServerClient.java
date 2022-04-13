@@ -29,21 +29,28 @@ public class ServerClient extends Thread{
     private OutputStream outStream;
 
     ArrayList<MessagePair> messages;
+    ArrayList<String> authStrings;
+
+    Boolean secured;
 
     //Constructor for server
-    public ServerClient(ArrayList<MessagePair> _messages){
+    public ServerClient(ArrayList<MessagePair> _messages, ArrayList<String> _authStrings){
         isServer = true;
         messages = _messages;
-        Log.d("p2p", "here11111!");
+        secured = false;
+        authStrings = _authStrings;
+
     }
 
     //Constructor for client
-    public ServerClient(String hostAdd, ArrayList<MessagePair> _messages){
+    public ServerClient(String hostAdd, ArrayList<MessagePair> _messages, ArrayList<String> _authStrings){
         isServer = false;
-        Log.d("p2p", "here!");
         hostAddress = hostAdd;
         socket = new Socket();
         messages = _messages;
+        secured = false;
+        authStrings = _authStrings;
+
     }
 
     public interface messagesChangedListener {
@@ -54,6 +61,19 @@ public class ServerClient extends Thread{
 
     public void setMessagesChangedListener(messagesChangedListener mcl){
         this.messagesChanged = mcl;
+    }
+
+    public void writeProtocol(byte[] bytes){
+        try {
+            if(outStream != null){
+                outStream.write(bytes);
+            }
+            else{
+                Log.d("p2p", "Outstream is null");
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public void write(byte[] bytes){
@@ -107,16 +127,13 @@ public class ServerClient extends Thread{
             @Override
             public void run() {
                 byte[] buffer = new byte[1024];
-                int bytes;
+                int bytes = 0;
 
                 while(socket != null){
                     try {
                         if(inStream != null){
                             bytes = inStream.read(buffer);
-                        }
-                        else{
-                            bytes = 0;
-                        }
+                        } else bytes = 0;
                         if(bytes > 0 ){
                             int finalBytes = bytes;
                             handler.post(new Runnable() {
@@ -124,11 +141,18 @@ public class ServerClient extends Thread{
                                 public void run() {
                                     String bufferMessage = new String(buffer, 0, finalBytes);
 
-                                    MessagePair incomingMessage = new MessagePair(bufferMessage);
-                                    messages.add(incomingMessage);
-                                    messagesChanged.onMessagesChangedListener();
+                                    if(!secured){
+                                        authStrings.add(bufferMessage);
+                                        messagesChanged.onMessagesChangedListener();
+                                    }
+                                    else{
+                                        MessagePair incomingMessage = new MessagePair(bufferMessage);
+                                        messages.add(incomingMessage);
+                                        messagesChanged.onMessagesChangedListener();
+                                    }
                                 }
                             });
+
                         }
                     } catch (IOException e) {
                         e.printStackTrace();

@@ -54,6 +54,8 @@ public class ChatActivity extends AppCompatActivity {
 
     String deviceName;
     Boolean isSecured;
+    ArrayList<String> authStrings;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -65,21 +67,125 @@ public class ChatActivity extends AppCompatActivity {
         thisAct = this;
         thisContext = getApplicationContext();
 
-
         initComponents();
         setUpServer();
+        beginAuthentication();
     }
 
-    public static void triggerRebirth(Context context) {
-        Intent intent = new Intent(context, MainActivity.class);
-        intent.addFlags(FLAG_ACTIVITY_NEW_TASK);
-        context.startActivity(intent);
-        if (context instanceof Activity) {
-            ((Activity) context).finish();
+
+    private void beginAuthentication(){
+        if 
+    }
+
+
+    private void setUpServer(){
+        //Phone is host
+        if(isHost){
+            statusText.setText("Host");
+            serverClient = new ServerClient(messages, authStrings);
         }
+        //Phone is client
+        else{
+            statusText.setText("Client");
+            serverClient = new ServerClient(hostAddress, messages, authStrings);
+        }
+//        serverClient.setMessagesChangedListener(new ServerClient.messagesChangedListener() {
+//            @Override
+//            public void onMessagesChangedListener() {
+//                runOnUiThread(new Runnable() {
+//                    @Override
+//                    public void run() {
+//                        adapter.notifyDataSetChanged();
+//                        messagesView.smoothScrollToPosition(adapter.getItemCount());
+//                    }
+//                });
+//            }
+//        });
 
-        Runtime.getRuntime().exit(0);
+        serverClient.setMessagesChangedListener(new ServerClient.messagesChangedListener() {
+            @Override
+            public void onMessagesChangedListener() {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        //Protocol run stuff
+
+                    }
+                });
+            }
+        });
+
+        serverClient.start();
+
+        sendButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                ExecutorService executor = Executors.newSingleThreadExecutor();
+                String messageToSend = sendText.getText().toString();
+                executor.execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        if( messageToSend != null) {
+                            String escapedMessage = messageToSend.replace("\'","\\'");
+                            MessagePair mPair =  new MessagePair(deviceName, escapedMessage);
+                            Log.d("p2p", mPair.toString());
+                            messages.add(new MessagePair("Me", messageToSend));
+                            serverClient.write(mPair.toString().getBytes(StandardCharsets.UTF_8));
+                        }
+                    }
+                });
+
+                sendText.setText("");
+                //Hides the keyboard
+                InputMethodManager imm = (InputMethodManager) thisAct.getSystemService(Activity.INPUT_METHOD_SERVICE);
+                View v = thisAct.getCurrentFocus();
+                imm.hideSoftInputFromWindow(v.getWindowToken(), 0);
+
+            }
+        });
+
+
     }
+    private void initComponents() {
+        statusText = findViewById(R.id.status_text);
+        messagesView = findViewById(R.id.messages_view);
+        sendText = findViewById(R.id.message_text);
+        sendButton = findViewById(R.id.send_button);
+        //sendButton.setEnabled(false);
+        //disconnectButton = findViewById(R.id.disconnect_button);
+
+        adapter = new ChatMessagesAdapter(messages);
+        messagesView.setAdapter(adapter);
+        messagesView.setLayoutManager(new LinearLayoutManager(this));
+
+        isSecured = false;
+        deviceName = Settings.Global.getString(getContentResolver(), "device_name");
+        authStrings = new ArrayList<String>();
+
+        //manager = (WifiP2pManager) getSystemService(Context.WIFI_P2P_SERVICE);
+        //channel = manager.initialize(this, getMainLooper(), null);
+
+    }
+
+//    public static void triggerRebirth(Context context) {
+//        Intent intent = new Intent(context, MainActivity.class);
+//        intent.addFlags(FLAG_ACTIVITY_NEW_TASK);
+//        context.startActivity(intent);
+//        if (context instanceof Activity) {
+//            ((Activity) context).finish();
+//        }
+//
+//        Runtime.getRuntime().exit(0);
+//    }
+
+    //        disconnectButton.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View view) {
+//                disconnect();
+//            }
+//        });
+
+
 
 //    private void disconnect() {
 //        serverClient.write("[<[disconnect]>]".getBytes(StandardCharsets.UTF_8));
@@ -112,92 +218,6 @@ public class ChatActivity extends AppCompatActivity {
 //            });
 //        }
 //    }
-
-    private void setUpServer(){
-        //Phone is host
-        Log.d("p2p", isHost.toString());
-        Log.d("p2p", hostAddress);
-        if(isHost){
-            statusText.setText("Host");
-            serverClient = new ServerClient(messages);
-        }
-        //Phone is client
-        else{
-            statusText.setText("Client");
-            serverClient = new ServerClient(hostAddress, messages);
-        }
-        serverClient.setMessagesChangedListener(new ServerClient.messagesChangedListener() {
-            @Override
-            public void onMessagesChangedListener() {
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        adapter.notifyDataSetChanged();
-                        messagesView.smoothScrollToPosition(adapter.getItemCount());
-                    }
-                });
-            }
-        });
-        serverClient.start();
-
-        sendButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                ExecutorService executor = Executors.newSingleThreadExecutor();
-                String messageToSend = sendText.getText().toString();
-                executor.execute(new Runnable() {
-                    @Override
-                    public void run() {
-                        if( messageToSend != null) {
-                            String escapedMessage = messageToSend.replace("\'","\\'");
-                            MessagePair mPair =  new MessagePair(deviceName, escapedMessage);
-                            Log.d("p2p", mPair.toString());
-                            messages.add(new MessagePair("Me", messageToSend));
-                            serverClient.write(mPair.toString().getBytes(StandardCharsets.UTF_8));
-                        }
-                    }
-                });
-
-                sendText.setText("");
-                //Hides the keyboard
-                InputMethodManager imm = (InputMethodManager) thisAct.getSystemService(Activity.INPUT_METHOD_SERVICE);
-                View v = thisAct.getCurrentFocus();
-                imm.hideSoftInputFromWindow(v.getWindowToken(), 0);
-
-            }
-        });
-
-//        disconnectButton.setOnClickListener(new View.OnClickListener() {
-//            @Override
-//            public void onClick(View view) {
-//                disconnect();
-//            }
-//        });
-    }
-    private void initComponents() {
-        statusText = findViewById(R.id.status_text);
-        messagesView = findViewById(R.id.messages_view);
-        sendText = findViewById(R.id.message_text);
-        sendButton = findViewById(R.id.send_button);
-        //sendButton.setEnabled(false);
-        //disconnectButton = findViewById(R.id.disconnect_button);
-
-        adapter = new ChatMessagesAdapter(messages);
-        messagesView.setAdapter(adapter);
-        messagesView.setLayoutManager(new LinearLayoutManager(this));
-
-        isSecured = false;
-        deviceName = Settings.Global.getString(getContentResolver(), "device_name");
-
-        //manager = (WifiP2pManager) getSystemService(Context.WIFI_P2P_SERVICE);
-        //channel = manager.initialize(this, getMainLooper(), null);
-
-
-
-    }
-
-
-
 
 
 }
