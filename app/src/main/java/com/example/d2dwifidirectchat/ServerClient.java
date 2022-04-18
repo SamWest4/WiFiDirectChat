@@ -25,8 +25,8 @@ public class ServerClient extends Thread{
     Socket socket;
     ServerSocket servSocket;
     //TextView messageText;
-    private InputStream inStream;
-    private OutputStream outStream;
+    public InputStream inStream;
+    public OutputStream outStream;
 
     ArrayList<MessagePair> messages;
     ArrayList<String> authStrings;
@@ -53,6 +53,10 @@ public class ServerClient extends Thread{
 
     }
 
+    public void setSecured(Boolean _secured){
+        secured = _secured;
+    }
+
     public interface messagesChangedListener {
         public void onMessagesChangedListener();
     }
@@ -64,15 +68,21 @@ public class ServerClient extends Thread{
     }
 
     public void writeProtocol(byte[] bytes){
-        try {
-            if(outStream != null){
-                outStream.write(bytes);
-            }
-            else{
-                Log.d("p2p", "Outstream is null");
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
+        if(outStream != null){
+            Thread thread = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try  {
+                        outStream.write(bytes);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            });
+            thread.start();
+        }
+        else{
+            Log.d("p2p", "Out stream is null");
         }
     }
 
@@ -102,11 +112,12 @@ public class ServerClient extends Thread{
                     Thread.sleep(600);
 
                     try {
-                        socket.connect(new InetSocketAddress(hostAddress, 8888), 500);
+                        socket.connect(new InetSocketAddress(hostAddress, 8888), 1500);
                     } catch (ConnectException e) {
                         Log.d("p2p", "Failed to open socket, trying again");
+                        Log.d("p2p",e.toString());
                         Thread.sleep(700);
-                        socket.connect(new InetSocketAddress(hostAddress, 8888), 500);
+                        socket.connect(new InetSocketAddress(hostAddress, 8888), 1500);
                     }
                 }catch (InterruptedException e){
                     Log.d("p2p", "Thread sleeps error");
@@ -141,15 +152,15 @@ public class ServerClient extends Thread{
                                 public void run() {
                                     String bufferMessage = new String(buffer, 0, finalBytes);
 
+
                                     if(!secured){
                                         authStrings.add(bufferMessage);
-                                        messagesChanged.onMessagesChangedListener();
                                     }
                                     else{
                                         MessagePair incomingMessage = new MessagePair(bufferMessage);
                                         messages.add(incomingMessage);
-                                        messagesChanged.onMessagesChangedListener();
                                     }
+                                    messagesChanged.onMessagesChangedListener();
                                 }
                             });
 

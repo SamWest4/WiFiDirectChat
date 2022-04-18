@@ -1,31 +1,22 @@
 package com.example.d2dwifidirectchat;
 
-import static android.content.Intent.FLAG_ACTIVITY_NEW_TASK;
-
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.net.wifi.p2p.WifiP2pDevice;
-import android.net.wifi.p2p.WifiP2pGroup;
 import android.net.wifi.p2p.WifiP2pManager;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
-import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.TextView;
 
-import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
@@ -52,9 +43,11 @@ public class ChatActivity extends AppCompatActivity {
     Activity thisAct;
     Context thisContext;
 
+    AuthService authService;
     String deviceName;
     Boolean isSecured;
     ArrayList<String> authStrings;
+    Integer authStep;
 
 
     @Override
@@ -69,13 +62,37 @@ public class ChatActivity extends AppCompatActivity {
 
         initComponents();
         setUpServer();
-        beginAuthentication();
+
+        authService = new AuthService(serverClient,isHost,authStrings, myInterface);
+        serverClient.setMessagesChangedListener(authService.incomingMessagesListener);
+        authService.startAuth();
+
     }
 
-
-    private void beginAuthentication(){
-        if 
+    public interface finishedInterface {
+        String completed(String status);
     }
+    public finishedInterface myInterface = (p1) -> {
+        Log.d("p2pDONE",p1);
+
+        serverClient.setMessagesChangedListener(new ServerClient.messagesChangedListener() {
+            @Override
+            public void onMessagesChangedListener() {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        adapter.notifyDataSetChanged();
+                        messagesView.smoothScrollToPosition(adapter.getItemCount());
+                    }
+                });
+            }
+        });
+        serverClient.setSecured(true);
+        sendButton.setEnabled(true);
+        return "Done";
+    };
+
+
 
 
     private void setUpServer(){
@@ -102,18 +119,6 @@ public class ChatActivity extends AppCompatActivity {
 //            }
 //        });
 
-        serverClient.setMessagesChangedListener(new ServerClient.messagesChangedListener() {
-            @Override
-            public void onMessagesChangedListener() {
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        //Protocol run stuff
-
-                    }
-                });
-            }
-        });
 
         serverClient.start();
 
@@ -151,7 +156,7 @@ public class ChatActivity extends AppCompatActivity {
         messagesView = findViewById(R.id.messages_view);
         sendText = findViewById(R.id.message_text);
         sendButton = findViewById(R.id.send_button);
-        //sendButton.setEnabled(false);
+        sendButton.setEnabled(false);
         //disconnectButton = findViewById(R.id.disconnect_button);
 
         adapter = new ChatMessagesAdapter(messages);
@@ -161,6 +166,7 @@ public class ChatActivity extends AppCompatActivity {
         isSecured = false;
         deviceName = Settings.Global.getString(getContentResolver(), "device_name");
         authStrings = new ArrayList<String>();
+        authStep = 0;
 
         //manager = (WifiP2pManager) getSystemService(Context.WIFI_P2P_SERVICE);
         //channel = manager.initialize(this, getMainLooper(), null);
