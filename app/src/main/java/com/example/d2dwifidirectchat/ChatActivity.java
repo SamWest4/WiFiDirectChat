@@ -22,6 +22,8 @@ import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import javax.crypto.SecretKey;
+
 public class ChatActivity extends AppCompatActivity {
 
     TextView statusText;
@@ -49,6 +51,8 @@ public class ChatActivity extends AppCompatActivity {
     ArrayList<String> authStrings;
     Integer authStep;
 
+    SecretKey sharedKey;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -70,10 +74,13 @@ public class ChatActivity extends AppCompatActivity {
     }
 
     public interface finishedInterface {
-        String completed(String status);
+        String completed(SecretKey k);
     }
-    public finishedInterface myInterface = (p1) -> {
-        Log.d("p2pDONE",p1);
+    public finishedInterface myInterface = (k) -> {
+
+        Log.d("Auth", "AUTH SERVICE DONE!");
+        sharedKey = k;
+
 
         serverClient.setMessagesChangedListener(new ServerClient.messagesChangedListener() {
             @Override
@@ -87,7 +94,7 @@ public class ChatActivity extends AppCompatActivity {
                 });
             }
         });
-        serverClient.setSecured(true);
+        serverClient.setSecured(true,sharedKey);
         sendButton.setEnabled(true);
         return "Done";
     };
@@ -106,18 +113,7 @@ public class ChatActivity extends AppCompatActivity {
             statusText.setText("Client");
             serverClient = new ServerClient(hostAddress, messages, authStrings);
         }
-//        serverClient.setMessagesChangedListener(new ServerClient.messagesChangedListener() {
-//            @Override
-//            public void onMessagesChangedListener() {
-//                runOnUiThread(new Runnable() {
-//                    @Override
-//                    public void run() {
-//                        adapter.notifyDataSetChanged();
-//                        messagesView.smoothScrollToPosition(adapter.getItemCount());
-//                    }
-//                });
-//            }
-//        });
+
 
 
         serverClient.start();

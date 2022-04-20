@@ -14,9 +14,13 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import javax.crypto.SecretKey;
 
 public class ServerClient extends Thread{
 
@@ -32,6 +36,7 @@ public class ServerClient extends Thread{
     ArrayList<String> authStrings;
 
     Boolean secured;
+    SecretKey key;
 
     //Constructor for server
     public ServerClient(ArrayList<MessagePair> _messages, ArrayList<String> _authStrings){
@@ -53,8 +58,9 @@ public class ServerClient extends Thread{
 
     }
 
-    public void setSecured(Boolean _secured){
+    public void setSecured(Boolean _secured, SecretKey _key){
         secured = _secured;
+        key = _key;
     }
 
     public interface messagesChangedListener {
@@ -150,8 +156,7 @@ public class ServerClient extends Thread{
                             handler.post(new Runnable() {
                                 @Override
                                 public void run() {
-                                    String bufferMessage = new String(buffer, 0, finalBytes);
-
+                                    String bufferMessage = new String(buffer, 0, finalBytes, StandardCharsets.ISO_8859_1);
 
                                     if(!secured){
                                         authStrings.add(bufferMessage);
