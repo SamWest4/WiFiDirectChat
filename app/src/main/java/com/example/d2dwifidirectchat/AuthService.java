@@ -10,11 +10,13 @@ import com.example.d2dwifidirectchat.ServerClient.messagesChangedListener;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
@@ -44,6 +46,7 @@ public class AuthService {
     X509Certificate myCert;
     PublicKey pubKey;
     PrivateKey privKey;
+    X509Certificate otherCert;
 
     String android_id;
 
@@ -83,6 +86,25 @@ public class AuthService {
             pubKey = myCert.getPublicKey();
             privKey = keys.privateKey;
 
+
+//            try {
+//                String plain = "hello there!";
+//                Log.d("RSA",plain);
+//                byte[] cText = protocolUtils.rsaEncrypt(plain,pubKey);
+//                Log.d("RSA",new String(cText,StandardCharsets.UTF_8));
+//                String dec =  protocolUtils.rsaDecrypt(cText,privKey);
+//                Log.d("RSA", dec);
+//
+//                byte[] signed = protocolUtils.rsaEncrypt(plain, privKey);
+//                Log.d("SIGNEDRSA", new String(signed,StandardCharsets.UTF_8));
+//                String decSigned =  protocolUtils.rsaDecrypt(signed,pubKey);
+//                Log.d("SIGNEDRSA", decSigned);
+//
+//            } catch (BadPaddingException| NoSuchPaddingException| IllegalBlockSizeException | InvalidKeyException e) {
+//                e.printStackTrace();
+//            }
+
+
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
         }
@@ -102,17 +124,25 @@ public class AuthService {
             while(serverClient.outStream == null){
 
             }
+//            if(isHost){
+//                Log.d(tag,"Sending first message");
+//                String mess = "{'NonceI':'"+myNonce+"'}";
+//
+//                Log.d(tag,mess);
+//                serverClient.writeProtocol(mess.getBytes(StandardCharsets.UTF_8));
+//                authStep++;
+//            }
             if(isHost){
-                Log.d(tag,"Sending first message");
-                String mess = "{'NonceI':'"+myNonce+"'}";
+                Log.d(tag,"Sending public key");
+                String mess = null;
+                try {
+                    mess = "{'cert':'"+ protocolUtils.convertCertToBase64PEMString(myCert)+"'}";
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
 
-                Log.d(tag,mess);
-                //serverClient.writeProtocol("Hello".getBytes(StandardCharsets.UTF_8));
                 serverClient.writeProtocol(mess.getBytes(StandardCharsets.UTF_8));
-                authStep++;
-            }
-            else{
-
+                //authStep++;
             }
         }
     };
@@ -129,6 +159,9 @@ public class AuthService {
             SecretKey finalK = protocolUtils.getKeyFromPass(password, saltBytes);
             Log.d("finalKey-"+isHost, Base64.getEncoder().encodeToString(finalK.getEncoded()));
             authDone.completed(finalK);
+
+            Log.d("MYCERT"+isHost,myCert.toString());
+            Log.d("OTHERCERT"+isHost,otherCert.toString());
         } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
             e.printStackTrace();
         }
@@ -145,24 +178,49 @@ public class AuthService {
             String incoming = authStrings.get(authStrings.size() - 1);
 
 
+            JSONObject messageObj = null;
+            try {
+                messageObj = new JSONObject(incoming);
+                Log.d(tag,String.valueOf(messageObj));
+            } catch (JSONException e) {
+                Log.d(tag, "failed to convert message to object");
+                Log.d(tag, incoming);
+            }
+
             //Protocol steps for client J
             if(!isHost){
+
                 switch (authStep){
 
-                    //Receive message 1, send Message 2
+                    //Receive message 1, send message 2
                     case 0:
-                        JSONObject messageObj = null;
-                        try {
-                            messageObj = new JSONObject(incoming);
-                            Log.d(tag,String.valueOf(messageObj));
-                        } catch (JSONException e) {
-                            Log.d(tag, "failed to convert message to object");
-                            Log.d(tag, incoming);
+                        if(messageObj != null){
+                            try{
+                                String certString = messageObj.getString("cert");
+                                Log.d(tag, "Message 1 received as expected");
+
+                                otherCert = protocolUtils.convertBase64StringToCert(certString);
+
+                                String message = "{'cert':'"+protocolUtils.convertCertToBase64PEMString(myCert)+"'}";
+                                serverClient.writeProtocol(message.getBytes(StandardCharsets.UTF_8));
+                                authStep++;
+                            }
+                            catch(JSONException | CertificateException | IOException e){
+                                Log.d(tag, "Message 1 not as expected!");
+                                Log.d(tag,messageObj.toString());
+                                Log.d(tag+"ERROR", e.toString());
+                            }
+                        }else{
+                            Log.d(tag, "Message 1 not as expected!");
                         }
+                        break;
+                    //Receive message 3, send Message 4
+                    case 1:
+
                         if(messageObj != null){
                             try{
                                 otherNonce = new BigInteger(messageObj.getString("NonceI"));
-                                Log.d(tag, "Message 1 received as expected");
+                                Log.d(tag, "Message 3 received as expected");
 
                                 //Calculate g^j mod p
                                 gExp = G.modPow(exp,P);
@@ -172,36 +230,29 @@ public class AuthService {
                                 authStep++;
                             }
                             catch(JSONException e){
-                                Log.d(tag, "Message 1 not as expected!");
+                                Log.d(tag, "Message 3 not as expected!");
                                 Log.d(tag,messageObj.toString());
                                 Log.d(tag+"ERROR", e.toString());
                             }
                         }
                         else{
-                            Log.d(tag, "Message 1 not as expected!");
+                            Log.d(tag, "Message 3 not as expected!");
                         }
                         break;
 
-                    //Receive Message 3
-                    case 1:
-                        JSONObject messageObj3 = null;
-                        try {
-                            messageObj3 = new JSONObject(incoming);
-                            Log.d(tag,String.valueOf(messageObj3));
-                        } catch (JSONException e) {
-                            Log.d(tag, "failed to convert message to object");
-                            Log.d(tag, incoming);
-                        }
-                        if(messageObj3 != null){
+                    //Receive Message 5
+                    case 2:
+
+                        if(messageObj != null){
                             try{
 
-                                BigInteger returnedNonce = new BigInteger(messageObj3.getString("NonceJ"));
+                                BigInteger returnedNonce = new BigInteger(messageObj.getString("NonceJ"));
                                 if(returnedNonce.equals(myNonce)){
                                     Log.d(tag,"Nonce is the same!");
 
-                                    BigInteger resI = new BigInteger(messageObj3.getString("resI"));
+                                    BigInteger resI = new BigInteger(messageObj.getString("resI"));
 
-                                    Log.d(tag, "Message 3 received as expected");
+                                    Log.d(tag, "Message 5 received as expected");
 
                                     BigInteger K = resI.modPow(exp,P);
                                     Log.d(tag,"Protocol completed!");
@@ -218,13 +269,13 @@ public class AuthService {
                                 }
                             }
                             catch(JSONException e){
-                                Log.d(tag, "Message 3 error parsing!");
-                                Log.d(tag,messageObj3.toString());
+                                Log.d(tag, "Message 5 error parsing!");
+                                Log.d(tag,messageObj.toString());
                                 Log.d(tag+"ERROR", e.toString());
                             }
                         }
                         else{
-                            Log.d(tag, "Message 3 not as expected!");
+                            Log.d(tag, "Message 5 not as expected!");
                         }
                         break;
                     default:
@@ -237,24 +288,40 @@ public class AuthService {
                 switch (authStep){
 
                     //Receive message 2 send message 3
-                    case 1:
-                        JSONObject messageObj2 = null;
-                        try {
-                            messageObj2 = new JSONObject(incoming);
-                            Log.d(tag,String.valueOf(messageObj2));
-                        } catch (JSONException e) {
-                            Log.d(tag, "failed to convert message to object");
-                            Log.d(tag, incoming);
-                        }
-                        if(messageObj2 != null){
+                    case 0:
+                        if(messageObj != null){
                             try {
-                                BigInteger returnedNonce = new BigInteger(messageObj2.getString("NonceI"));
+                                String certString = messageObj.getString("cert");
+                                Log.d(tag, "Message 2 received as expected");
+                                otherCert = protocolUtils.convertBase64StringToCert(certString);
+
+
+                                String mess = "{'NonceI':'"+myNonce+"'}";
+                                Log.d(tag,"Sending Second message");
+                                serverClient.writeProtocol(mess.getBytes(StandardCharsets.UTF_8));
+                                authStep++;
+
+                            } catch (JSONException | CertificateException e) {
+                                Log.d(tag, "Message 2 error parsing");
+                                Log.d(tag+"ERROR", e.toString());
+                            }
+                        }
+                        else{
+                            Log.d(tag, "Message 2 not as expected!");
+                        }
+                        break;
+                    //Receive message 4 send message 5
+                    case 1:
+
+                        if(messageObj != null){
+                            try {
+                                BigInteger returnedNonce = new BigInteger(messageObj.getString("NonceI"));
 
                                 if(returnedNonce.equals(myNonce)){
                                     Log.d(tag,"Nonce is the same!");
 
-                                    otherNonce = new BigInteger(messageObj2.getString("NonceJ"));
-                                    BigInteger resJ = new BigInteger(messageObj2.getString("resJ"));
+                                    otherNonce = new BigInteger(messageObj.getString("NonceJ"));
+                                    BigInteger resJ = new BigInteger(messageObj.getString("resJ"));
 
                                     Log.d(tag, "Message 2 received as expected");
 

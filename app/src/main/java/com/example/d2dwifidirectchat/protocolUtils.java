@@ -25,6 +25,8 @@ import java.io.StringWriter;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
+import java.security.Key;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -42,7 +44,10 @@ import java.util.Base64;
 import java.util.Calendar;
 import java.util.Date;
 
+import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.GCMParameterSpec;
@@ -133,6 +138,18 @@ public class protocolUtils {
 
     }
 
+    public static byte[] rsaEncrypt(String pText, Key key) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, BadPaddingException, IllegalBlockSizeException {
+        Cipher rsa = Cipher.getInstance("RSA");
+        rsa.init(Cipher.ENCRYPT_MODE, key);
+        return rsa.doFinal(pText.getBytes());
+    }
+
+    public static String rsaDecrypt(byte[] cText, Key key) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, BadPaddingException, IllegalBlockSizeException {
+        Cipher rsa = Cipher.getInstance("RSA");
+        rsa.init(Cipher.DECRYPT_MODE, key);
+        return new String(rsa.doFinal(cText),StandardCharsets.UTF_8);
+    }
+
 
     public static String convertCertToBase64PEMString(X509Certificate x509Cert) throws IOException {
         StringWriter sw = new StringWriter();
@@ -157,7 +174,7 @@ public class protocolUtils {
         Date notBefore = new Date();
         Calendar c = Calendar.getInstance();
         c.setTime(notBefore);
-        c.add(Calendar.YEAR, 1);
+        c.add(Calendar.YEAR, 5);
         Date notAfter = c.getTime();
 
         X500Name owner = new X500Name("CN=" + name);
@@ -167,12 +184,11 @@ public class protocolUtils {
 //        X509v3CertificateBuilder builder = new X509v3CertificateBuilder(
 //                owner, new BigInteger(64, rnd), notBefore, notAfter, owner, SubjectPublicKeyInfo.getInstance(keypair.getPublic()));
 
-        ContentSigner signer = new JcaContentSignerBuilder("SHA256withECDSA").build(key);
+        ContentSigner signer = new JcaContentSignerBuilder("SHA256WithRSAEncryption").build(key);
         X509CertificateHolder certHolder = builder.build(signer);
         X509Certificate cert = new JcaX509CertificateConverter().setProvider(PROVIDER).getCertificate(certHolder);
         cert.verify(keypair.getPublic());
 
-        Log.d("CErT",cert.toString());
         return  cert;
     }
 
@@ -195,7 +211,7 @@ public class protocolUtils {
         File f = new File(fileDir,"cert.cer");
         if(f.exists() && !f.isDirectory()) {
             try{
-                KeyFactory keyFactory = KeyFactory.getInstance("EC");
+                KeyFactory keyFactory = KeyFactory.getInstance("RSA");
 
                 //Read certificates
                 File fileCert = new File(fileDir,"cert.cer");
@@ -211,7 +227,6 @@ public class protocolUtils {
                 }
                 X509Certificate cert = protocolUtils.convertBase64StringToCert(certString.toString());
 
-                Log.d("CERT", cert.toString());
 
                 //Read in private key
                 File filePrivateKey = new File(fileDir,"private.key");
@@ -234,25 +249,22 @@ public class protocolUtils {
 
         }
         else {
-            KeyPairGenerator keyGen = KeyPairGenerator.getInstance("EC");
+            KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
             SecureRandom random = SecureRandom.getInstance("SHA1PRNG");
-            keyGen.initialize(256, random);
+            keyGen.initialize(2048, random);
             KeyPair pair = keyGen.generateKeyPair();
 
             try {
                 X509Certificate cert = protocolUtils.generateCert(android_id, pair);
 
-                Log.d("CERRRR", cert.toString());
 
                 //Save certificate (public key)
                 String s = protocolUtils.convertCertToBase64PEMString(cert);
-                Log.d("BASE64 string",s);
                 FileOutputStream os = new FileOutputStream(new File(fileDir,"cert.cer"));
                 os.write(protocolUtils.convertCertToBase64PEMString(cert).getBytes(StandardCharsets.UTF_8));
                 os.close();
 
                 X509Certificate cer = protocolUtils.convertBase64StringToCert(s);
-                Log.d("CERRRR", cer.toString());
 
                 //Save private key
                 PKCS8EncodedKeySpec pkcs8EncodedKeySpec = new PKCS8EncodedKeySpec(
@@ -270,7 +282,6 @@ public class protocolUtils {
         }
         return null;
     }
-
 
 
 
