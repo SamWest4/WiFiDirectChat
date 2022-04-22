@@ -10,25 +10,13 @@ import com.example.d2dwifidirectchat.ServerClient.messagesChangedListener;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
-import java.security.KeyFactory;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.security.SecureRandom;
-import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.security.spec.InvalidKeySpecException;
-import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.concurrent.ExecutorService;
@@ -90,7 +78,7 @@ public class AuthService {
 
 
         try {
-            certKeyPair keys = getKeys();
+            protocolUtils.certKeyPair keys = protocolUtils.getKeys(context,android_id);
             myCert = keys.certificate;
             pubKey = myCert.getPublicKey();
             privKey = keys.privateKey;
@@ -106,99 +94,7 @@ public class AuthService {
         executor.execute(beginAuth);
     }
 
-    public static class certKeyPair {
-        public X509Certificate certificate;
-        public PrivateKey privateKey;
 
-        public certKeyPair(X509Certificate cert, PrivateKey key){
-            certificate = cert;
-            privateKey = key;
-        }
-    }
-
-    @SuppressLint("NewApi")
-    public certKeyPair getKeys() throws NoSuchAlgorithmException {
-
-        File fileDir = thisContext.getFilesDir();
-        //Check for keys already stored
-        File f = new File(fileDir,"cert.cer");
-        if(f.exists() && !f.isDirectory()) {
-            try{
-                KeyFactory keyFactory = KeyFactory.getInstance("EC");
-
-                //Read certificates
-                File fileCert = new File(fileDir,"cert.cer");
-                FileInputStream fisCert = new FileInputStream(fileCert);
-                InputStreamReader isrCert = new InputStreamReader(fisCert, StandardCharsets.UTF_8);
-                BufferedReader readerCert = new BufferedReader(isrCert);
-
-                StringBuilder certString = new StringBuilder();
-                String line = readerCert.readLine();
-                while(line != null){
-                    certString.append(line+ '\n');
-                    line = readerCert.readLine();
-                }
-                X509Certificate cert = protocolUtils.convertBase64StringToCert(certString.toString());
-
-                Log.d("CERT", cert.toString());
-
-                //Read in private key
-                File filePrivateKey = new File(fileDir,"private.key");
-                FileInputStream fis = new FileInputStream(filePrivateKey);
-                byte[] encodedPrivateKey = new byte[(int) filePrivateKey.length()];
-                fis.read(encodedPrivateKey);
-                fis.close();
-                PKCS8EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(
-                        encodedPrivateKey);
-                PrivateKey privateKey = keyFactory.generatePrivate(privateKeySpec);
-
-                Log.d("CERT", "Successfully read keys");
-                return new certKeyPair(cert,privateKey);
-
-            } catch (IOException | CertificateException | InvalidKeySpecException e) {
-                Log.d("CERT", "ERROR loading keys");
-                Log.d("CERT", e.toString());
-                e.printStackTrace();
-            }
-
-        }
-        else {
-            KeyPairGenerator keyGen = KeyPairGenerator.getInstance("EC");
-            SecureRandom random = SecureRandom.getInstance("SHA1PRNG");
-            keyGen.initialize(256, random);
-            KeyPair pair = keyGen.generateKeyPair();
-
-            try {
-                X509Certificate cert = protocolUtils.generateCert(android_id, pair);
-
-                Log.d("CERRRR", cert.toString());
-
-                //Save certificate (public key)
-                String s = protocolUtils.convertCertToBase64PEMString(cert);
-                Log.d("BASE64 string",s);
-                FileOutputStream os = new FileOutputStream(new File(fileDir,"cert.cer"));
-                os.write(protocolUtils.convertCertToBase64PEMString(cert).getBytes(StandardCharsets.UTF_8));
-                os.close();
-
-                X509Certificate cer = protocolUtils.convertBase64StringToCert(s);
-                Log.d("CERRRR", cer.toString());
-
-                //Save private key
-                PKCS8EncodedKeySpec pkcs8EncodedKeySpec = new PKCS8EncodedKeySpec(
-                        pair.getPrivate().getEncoded());
-                os = new FileOutputStream(new File(fileDir,"private.key"));
-                os.write(pkcs8EncodedKeySpec.getEncoded());
-                os.close();
-
-                return new certKeyPair(cert,pair.getPrivate());
-
-            } catch (Exception e) {
-                Log.d("KEYS", "Failed to generate and save cert");
-                e.printStackTrace();
-            }
-        }
-        return null;
-    }
 
     Runnable beginAuth = new Runnable() {
         @Override
