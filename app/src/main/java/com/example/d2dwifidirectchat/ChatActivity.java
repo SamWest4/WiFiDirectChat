@@ -1,9 +1,5 @@
 package com.example.d2dwifidirectchat;
 
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
-
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
@@ -16,6 +12,10 @@ import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.TextView;
+
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -67,7 +67,7 @@ public class ChatActivity extends AppCompatActivity {
         initComponents();
         setUpServer();
 
-        authService = new AuthService(serverClient,isHost,authStrings, myInterface);
+        authService = new AuthService(serverClient,isHost,authStrings, myInterface, thisContext);
         serverClient.setMessagesChangedListener(authService.incomingMessagesListener);
         authService.startAuth();
 
@@ -94,7 +94,7 @@ public class ChatActivity extends AppCompatActivity {
                 });
             }
         });
-        serverClient.setSecured(true,sharedKey);
+        serverClient.setSecured(true, sharedKey);
         sendButton.setEnabled(true);
         return "Done";
     };
@@ -128,10 +128,20 @@ public class ChatActivity extends AppCompatActivity {
                     public void run() {
                         if( messageToSend != null) {
                             String escapedMessage = messageToSend.replace("\'","\\'");
-                            MessagePair mPair =  new MessagePair(deviceName, escapedMessage);
-                            Log.d("p2p", mPair.toString());
-                            messages.add(new MessagePair("Me", messageToSend));
-                            serverClient.write(mPair.toString().getBytes(StandardCharsets.UTF_8));
+
+                            try {
+
+                                MessagePair mPair =  new MessagePair(deviceName, escapedMessage);
+                                messages.add(new MessagePair("Me", escapedMessage));
+                                String encryptedMessage = protocolUtils.encrypt(mPair.toString().getBytes(StandardCharsets.UTF_8), sharedKey);
+                                Log.d("sending-message", encryptedMessage);
+                                serverClient.write(encryptedMessage.getBytes(StandardCharsets.UTF_8));
+                            } catch (Exception e) {
+                                Log.d("Encryption", "Error encrypting message!");
+                                e.printStackTrace();
+                            }
+
+
                         }
                     }
                 });

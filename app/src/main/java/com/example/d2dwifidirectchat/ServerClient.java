@@ -36,7 +36,7 @@ public class ServerClient extends Thread{
     ArrayList<String> authStrings;
 
     Boolean secured;
-    SecretKey key;
+    SecretKey sharedKey;
 
     //Constructor for server
     public ServerClient(ArrayList<MessagePair> _messages, ArrayList<String> _authStrings){
@@ -60,7 +60,7 @@ public class ServerClient extends Thread{
 
     public void setSecured(Boolean _secured, SecretKey _key){
         secured = _secured;
-        key = _key;
+        sharedKey = _key;
     }
 
     public interface messagesChangedListener {
@@ -160,10 +160,23 @@ public class ServerClient extends Thread{
 
                                     if(!secured){
                                         authStrings.add(bufferMessage);
+
                                     }
                                     else{
-                                        MessagePair incomingMessage = new MessagePair(bufferMessage);
-                                        messages.add(incomingMessage);
+
+                                        try {
+                                            String decrypted = protocolUtils.decrypt(bufferMessage,sharedKey);
+                                            Log.d("Incoming-message1",bufferMessage);
+                                            Log.d("Incoming-message2",decrypted);
+                                            MessagePair incomingMessage = new MessagePair(decrypted);
+                                            messages.add(incomingMessage);
+
+                                        } catch (Exception e) {
+                                            Log.d("Encryption", "Error decrypting the message");
+                                            e.printStackTrace();
+                                        }
+
+
                                     }
                                     messagesChanged.onMessagesChangedListener();
                                 }
