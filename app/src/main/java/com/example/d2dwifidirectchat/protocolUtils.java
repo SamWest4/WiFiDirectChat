@@ -31,9 +31,13 @@ import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
 import java.security.Provider;
+import java.security.PublicKey;
 import java.security.SecureRandom;
+import java.security.Signature;
+import java.security.SignatureException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
@@ -47,6 +51,7 @@ import java.util.Date;
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.KeyGenerator;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
@@ -79,6 +84,12 @@ public class protocolUtils {
         return nonce;
     }
 
+    @SuppressLint("NewApi")
+    public static SecretKey getAESKey() throws NoSuchAlgorithmException {
+        KeyGenerator keyGen = KeyGenerator.getInstance("AES");
+        keyGen.init(128, rnd.getInstanceStrong());
+        return keyGen.generateKey();
+    }
 
     public static SecretKey getKeyFromPass(char[] password, byte[] salt)
             throws NoSuchAlgorithmException, InvalidKeySpecException {
@@ -138,17 +149,44 @@ public class protocolUtils {
 
     }
 
-    public static byte[] rsaEncrypt(String pText, Key key) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, BadPaddingException, IllegalBlockSizeException {
-        Cipher rsa = Cipher.getInstance("RSA");
+    public static byte[] ecEncrypt(String pText, Key key) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, BadPaddingException, IllegalBlockSizeException, NoSuchProviderException {
+//        Cipher rsa = Cipher.getInstance("RSA/ECB/OAEPwithSHA1andMGF1Padding");
+        Cipher rsa = Cipher.getInstance("ECIES");
+        Log.d("SIZE",pText.getBytes(StandardCharsets.UTF_8).length+"");
         rsa.init(Cipher.ENCRYPT_MODE, key);
-        return rsa.doFinal(pText.getBytes());
+        return rsa.doFinal(pText.getBytes(StandardCharsets.UTF_8));
     }
 
-    public static String rsaDecrypt(byte[] cText, Key key) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, BadPaddingException, IllegalBlockSizeException {
-        Cipher rsa = Cipher.getInstance("RSA");
+    public static String ecDecrypt(byte[] cText, Key key) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, BadPaddingException, IllegalBlockSizeException, NoSuchProviderException {
+//        Cipher rsa = Cipher.getInstance("RSA/ECB/OAEPwithSHA1andMGF1Padding");
+        Cipher rsa = Cipher.getInstance("ECIES");
         rsa.init(Cipher.DECRYPT_MODE, key);
         return new String(rsa.doFinal(cText),StandardCharsets.UTF_8);
     }
+
+    public static byte[] ecSign(String plainText, PrivateKey k) throws Exception {
+
+        Signature sig = Signature.getInstance("SHA1WithECDSA");
+        sig.initSign(k);
+        sig.update(plainText.getBytes(StandardCharsets.UTF_8));
+        return sig.sign();
+    }
+
+    public static boolean verify(String plainText, byte[] signature, PublicKey k) throws Exception {
+
+        Signature sig = Signature.getInstance("SHA1WithECDSA");
+        sig.initVerify(k);
+        sig.update(plainText.getBytes(StandardCharsets.UTF_8));
+        try {
+            if (sig.verify(signature)) {
+                return true;
+            } else return false;
+        } catch (SignatureException se) {
+            System.out.println( "Signature failed" );
+        }
+        return false;
+    }
+
 
 
     public static String convertCertToBase64PEMString(X509Certificate x509Cert) throws IOException {
@@ -184,7 +222,7 @@ public class protocolUtils {
 //        X509v3CertificateBuilder builder = new X509v3CertificateBuilder(
 //                owner, new BigInteger(64, rnd), notBefore, notAfter, owner, SubjectPublicKeyInfo.getInstance(keypair.getPublic()));
 
-        ContentSigner signer = new JcaContentSignerBuilder("SHA256WithRSAEncryption").build(key);
+        ContentSigner signer = new JcaContentSignerBuilder("SHA256withECDSA").build(key);
         X509CertificateHolder certHolder = builder.build(signer);
         X509Certificate cert = new JcaX509CertificateConverter().setProvider(PROVIDER).getCertificate(certHolder);
         cert.verify(keypair.getPublic());
@@ -211,7 +249,7 @@ public class protocolUtils {
         File f = new File(fileDir,"cert.cer");
         if(f.exists() && !f.isDirectory()) {
             try{
-                KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+                KeyFactory keyFactory = KeyFactory.getInstance("EC");
 
                 //Read certificates
                 File fileCert = new File(fileDir,"cert.cer");
@@ -249,9 +287,9 @@ public class protocolUtils {
 
         }
         else {
-            KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
+            KeyPairGenerator keyGen = KeyPairGenerator.getInstance("EC");
             SecureRandom random = SecureRandom.getInstance("SHA1PRNG");
-            keyGen.initialize(2048, random);
+            keyGen.initialize(256 , random);
             KeyPair pair = keyGen.generateKeyPair();
 
             try {

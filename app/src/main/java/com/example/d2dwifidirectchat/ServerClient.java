@@ -1,22 +1,18 @@
 package com.example.d2dwifidirectchat;
 
-import android.app.Activity;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
-import android.widget.TextView;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ConnectException;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -143,7 +139,7 @@ public class ServerClient extends Thread{
         executor.execute(new Runnable() {
             @Override
             public void run() {
-                byte[] buffer = new byte[1024];
+                byte[] buffer = new byte[4096];
                 int bytes = 0;
 
                 while(socket != null){
@@ -156,9 +152,12 @@ public class ServerClient extends Thread{
                             handler.post(new Runnable() {
                                 @Override
                                 public void run() {
-                                    String bufferMessage = new String(buffer, 0, finalBytes, StandardCharsets.ISO_8859_1);
+                                    String bufferMessage = new String(buffer, 0, finalBytes, StandardCharsets.UTF_8);
 
                                     if(!secured){
+
+                                        //Log.d("ServClient", bufferMessage);
+
                                         authStrings.add(bufferMessage);
 
                                     }
