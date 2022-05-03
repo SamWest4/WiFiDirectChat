@@ -152,7 +152,6 @@ public class protocolUtils {
     public static byte[] ecEncrypt(String pText, Key key) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, BadPaddingException, IllegalBlockSizeException, NoSuchProviderException {
 //        Cipher rsa = Cipher.getInstance("RSA/ECB/OAEPwithSHA1andMGF1Padding");
         Cipher rsa = Cipher.getInstance("ECIES");
-        Log.d("SIZE",pText.getBytes(StandardCharsets.UTF_8).length+"");
         rsa.init(Cipher.ENCRYPT_MODE, key);
         return rsa.doFinal(pText.getBytes(StandardCharsets.UTF_8));
     }
@@ -276,7 +275,6 @@ public class protocolUtils {
                         encodedPrivateKey);
                 PrivateKey privateKey = keyFactory.generatePrivate(privateKeySpec);
 
-                Log.d("CERT", "Successfully read keys");
                 return new certKeyPair(cert,privateKey);
 
             } catch (IOException | CertificateException | InvalidKeySpecException e) {

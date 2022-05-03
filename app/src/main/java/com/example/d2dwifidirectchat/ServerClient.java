@@ -98,7 +98,7 @@ public class ServerClient extends Thread{
                 Log.d("p2p", "outstream is null");
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            Log.d("WRITEERROR","FAILED to write");
         }
     }
 
@@ -165,8 +165,8 @@ public class ServerClient extends Thread{
 
                                         try {
                                             String decrypted = protocolUtils.decrypt(bufferMessage,sharedKey);
-                                            Log.d("Incoming-message1",bufferMessage);
-                                            Log.d("Incoming-message2",decrypted);
+                                            Log.d("Incoming-message-ENC",bufferMessage);
+                                            Log.d("Incoming-message-DEC",decrypted);
                                             MessagePair incomingMessage = new MessagePair(decrypted);
                                             messages.add(incomingMessage);
 

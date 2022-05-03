@@ -27,13 +27,13 @@
         android:layout_marginEnd="8dp"
         android:layout_marginBottom="25dp"
         android:scrollbars="vertical"
-        app:layout_constraintBottom_toTopOf="@+id/linearLayout"
+        app:layout_constraintBottom_toTopOf="@+id/linearLayoutMessages"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/protocol_text" />
 
     <LinearLayout
-        android:id="@+id/linearLayout"
+        android:id="@+id/linearLayoutMessages"
         android:layout_width="0dp"
         android:layout_height="47dp"
         android:layout_marginStart="4dp"
@@ -51,7 +51,7 @@
             android:layout_weight="1"
             android:ems="10"
             android:hint="Enter a message..."
-            android:inputType="textPersonName"
+            android:inputType="textCapSentences"
             android:text="@string/send_message_text" />
 
         <ImageButton
@@ -70,10 +70,21 @@
         android:layout_marginStart="35dp"
         android:layout_marginTop="15dp"
         android:layout_marginEnd="35dp"
-        android:background="#FF9800"
-        android:text="Protocol status"
-        app:layout_constraintEnd_toEndOf="parent"
+        android:background="#F44336"
+        android:text="Securing phone..."
+        app:layout_constraintEnd_toStartOf="@+id/disconnect_button"
         app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/status_text" />
+
+    <Button
+        android:id="@+id/disconnect_button"
+        android:layout_width="wrap_content"
+        android:layout_height="0dp"
+        android:layout_marginEnd="35dp"
+        android:text="Disconnect"
+        app:layout_constraintBottom_toTopOf="@+id/messages_view"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/protocol_text"
         app:layout_constraintTop_toBottomOf="@+id/status_text" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

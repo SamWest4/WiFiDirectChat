@@ -19,9 +19,7 @@ public class MessagePair {
 
             if(messagePairString.startsWith("MessagePair")){
                 String[] split = messagePairString.split("MessagePair");
-                Log.d("MessagePairString", messagePairString);
                 JSONObject myObj = new JSONObject(split[1]);
-                Log.d("JSON", myObj.toString());
                 sender = myObj.getString("sender");
                 message = myObj.getString("message");
             }
