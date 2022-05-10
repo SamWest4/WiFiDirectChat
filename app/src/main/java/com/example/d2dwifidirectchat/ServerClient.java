@@ -24,6 +24,7 @@ public class ServerClient extends Thread{
     Boolean isServer;
     Socket socket;
     ServerSocket servSocket;
+    String tag;
     //TextView messageText;
     public InputStream inStream;
     public OutputStream outStream;
@@ -40,6 +41,7 @@ public class ServerClient extends Thread{
         messages = _messages;
         secured = false;
         authStrings = _authStrings;
+        tag = "SERVCLIENT-HOST";
 
     }
 
@@ -51,7 +53,7 @@ public class ServerClient extends Thread{
         messages = _messages;
         secured = false;
         authStrings = _authStrings;
-
+        tag = "SERVCLIENT-CLIENT";
     }
 
     public void setSecured(Boolean _secured, SecretKey _key){
@@ -165,8 +167,8 @@ public class ServerClient extends Thread{
 
                                         try {
                                             String decrypted = protocolUtils.decrypt(bufferMessage,sharedKey);
-                                            Log.d("Incoming-message-ENC",bufferMessage);
-                                            Log.d("Incoming-message-DEC",decrypted);
+                                            Log.d(tag+"-ENC",bufferMessage);
+                                            Log.d(tag+"-DEC",decrypted);
                                             MessagePair incomingMessage = new MessagePair(decrypted);
                                             messages.add(incomingMessage);
 

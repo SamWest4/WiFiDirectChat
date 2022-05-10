@@ -61,19 +61,9 @@ import javax.crypto.spec.SecretKeySpec;
 
 public class protocolUtils {
 
-//    public static byte[] generateNonce(int byteLen){
-//
-//        SecureRandom rnd = new SecureRandom();
-//        byte[] nonce = new byte[byteLen];
-//        rnd.nextBytes(nonce);
-//        return nonce;
-//    }
-
-
-
     static SecureRandom rnd = new SecureRandom();
 
-    public static BigInteger generateNonce(int len){
+    public static BigInteger generateBigint(int len){
         BigInteger n = new BigInteger(len,rnd);
         return n;
     }
@@ -107,15 +97,12 @@ public class protocolUtils {
     public static String encrypt(byte[] plainText, SecretKey key) throws Exception {
 
         byte[] salt = getRandomNonce(16);
-
         byte[] iv = getRandomNonce(12);
 
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-
         cipher.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(128, iv));
 
         byte[] cipherText = cipher.doFinal(plainText);
-
         byte[] cipherTextWithIvSalt = ByteBuffer.allocate(iv.length + salt.length + cipherText.length)
                 .put(iv)
                 .put(salt)

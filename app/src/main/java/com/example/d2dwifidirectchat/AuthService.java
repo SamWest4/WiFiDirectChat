@@ -13,9 +13,7 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
-import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.cert.CertificateException;
@@ -26,9 +24,6 @@ import java.util.Base64;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 
 public class AuthService {
@@ -79,10 +74,13 @@ public class AuthService {
         authStrings = _authStrings;
         serverClient = _serverClient;
         isHost = _isHost;
-        tag = "AUTH-" + isHost.toString();
+        tag = "AUTH-";
+
+        if(isHost) tag += "HOST";
+        else tag+= "CLIENT";
         authDone=_authDone;
-        myNonce = protocolUtils.generateNonce(128);
-        exp = protocolUtils.generateNonce(128);
+        myNonce = protocolUtils.generateBigint(128);
+        exp = protocolUtils.generateBigint(128);
         thisContext = context;
 
         android_id = Settings.Secure.getString(context.getContentResolver(), Settings.Secure.ANDROID_ID);
@@ -111,19 +109,15 @@ public class AuthService {
     Runnable beginAuth = new Runnable() {
         @Override
         public void run() {
-            while(serverClient.outStream == null){
-
-            }
+            while(serverClient.outStream == null){ }
             if(isHost){
                 Log.d(tag,"Sending public key");
                 String mess = null;
                 try {
                     mess = "{'cert':'"+ protocolUtils.convertCertToBase64PEMString(myCert)+"'}";
-                    Log.d("CERT",mess);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-
                 serverClient.writeProtocol(mess.getBytes(StandardCharsets.UTF_8));
             }
         }
@@ -139,11 +133,8 @@ public class AuthService {
 
         try {
             SecretKey finalK = protocolUtils.getKeyFromPass(password, saltBytes);
-            Log.d("finalKey-"+isHost, Base64.getEncoder().encodeToString(finalK.getEncoded()));
+            Log.d(tag= "-finalKey", Base64.getEncoder().encodeToString(finalK.getEncoded()));
             authDone.completed(finalK);
-//
-//            Log.d("MYCERT"+isHost,myCert.toString());
-//            Log.d("OTHERCERT"+isHost,otherCert.toString());
         } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
             e.printStackTrace();
         }
@@ -157,7 +148,6 @@ public class AuthService {
         public void onMessagesChangedListener() {
 
             Log.d(tag, "current step = " + authStep.toString());
-            //Log.d(tag, authStrings.toString());
             String incoming = authStrings.get(authStrings.size() - 1);
 
 
@@ -182,11 +172,9 @@ public class AuthService {
                             try{
                                 String certString = messageObj.getString("cert");
                                 Log.d(tag, "Message 1 received as expected");
-
                                 otherCert = protocolUtils.convertBase64StringToCert(certString);
 
                                 String message = "{'cert':'"+protocolUtils.convertCertToBase64PEMString(myCert)+"'}";
-                                Log.d("OTHERCERT", message);
                                 serverClient.writeProtocol(message.getBytes(StandardCharsets.UTF_8));
                                 authStep++;
                             }
@@ -203,62 +191,36 @@ public class AuthService {
                     case 1:
                         if(messageObj != null){
                             try{
-
-
                                 otherNonce = new BigInteger(messageObj.getString("NonceI"));
                                 String AID = messageObj.getString("AID");
                                 Tseq = new BigInteger(messageObj.getString("Tseq"));
-
-
                                 byte[] encAID = Base64.getDecoder().decode(AID.getBytes(StandardCharsets.UTF_8));
                                 String AidString = protocolUtils.ecDecrypt(encAID,privKey);
-
+                                //Check tseq
                                 //Check AID
                                 JSONObject AidObj = new JSONObject(AidString);
-
                                 String id = AidObj.getString("ID");
                                 BigInteger nCheck = new BigInteger(AidObj.getString("NonceI"));
-
                                 String subjectDN = otherCert.getSubjectDN().toString().substring(3);
-
                                 if(subjectDN.equals(id) && nCheck.equals(otherNonce)){
                                     Log.d(tag,"ID and nonce match matches certificate/AID");
-
-                                    //Check tseq
-                                    //TODO: Check tseq!
-
                                     Log.d(tag, "Message 3 received as expected");
 
                                     //Calculate g^j mod p
                                     gExp = G.modPow(exp,P);
-
                                     String toEnc = "{NonceI:'"+otherNonce+"',resJ:'"+gExp+"'}";
-
                                     byte[] encrypted = protocolUtils.ecEncrypt(toEnc,otherCert.getPublicKey());
                                     String encString = Base64.getEncoder().encodeToString(encrypted);
-
-
                                     byte[] signed = protocolUtils.ecSign(encString,privKey);
                                     String signedString = Base64.getEncoder().encodeToString(signed);
-
-                                    //Log.d("SIGN",encString);
-                                    Log.d("SIGN",signedString);
+                                    Log.d(tag+ "-SIGNED",signedString);
 
                                     String finalString = "{NonceJ:'"+myNonce+"',signed:'"+signedString+"',plain:'"+encString+"'}";
-
-                                    Log.d("SENT-Message",finalString);
-                                    //String message = "{NonceJ:'"+myNonce+"',NonceI:'"+otherNonce+"',resJ:'"+gExp +"'}";
+                                    Log.d(tag+"SENT",finalString);
                                     serverClient.writeProtocol(finalString.getBytes(StandardCharsets.UTF_8));
                                     authStep++;
-
-
                                 }
-                                else{
-                                    Log.d(tag,"ID or nonce dont match");
-                                }
-
-
-
+                                else{ Log.d(tag,"ID or nonce dont match"); }
                             }
                             catch(Exception e){
                                 Log.d(tag, "Message 3 not as expected!");
@@ -266,63 +228,41 @@ public class AuthService {
                                 e.printStackTrace();
                             }
                         }
-                        else{
-                            Log.d(tag, "Message 3 not as expected!");
-                        }
+                        else{ Log.d(tag, "Message 3 not as expected!"); }
                         break;
 
                     //Receive Message 5
                     case 2:
                         if(messageObj != null){
                             try{
-
                                 String signed = messageObj.getString("signed");
                                 String plain = messageObj.getString("plain");
                                 byte[] signedBytes = Base64.getDecoder().decode(signed);
-
                                 if(protocolUtils.verify(plain,signedBytes,otherCert.getPublicKey())){
                                     Log.d(tag,"Signature verified.");
-
                                     byte[] toDec = Base64.getDecoder().decode(plain);
                                     String dec = protocolUtils.ecDecrypt(toDec,privKey);
-
-                                    Log.d("Decryption",dec);
+                                    Log.d(tag+ "DECRYPT",dec);
                                     JSONObject decMessageObj = new JSONObject(dec);
                                     BigInteger returnedNonce = new BigInteger(decMessageObj.getString("NonceJ"));
 
                                     if(returnedNonce.equals(myNonce)){
                                         Log.d(tag,"Returned nonce matches");
-
                                         BigInteger resI = new BigInteger(decMessageObj.getString("resI"));
                                         Log.d(tag, "Message 5 received as expected");
-
                                         BigInteger K = resI.modPow(exp,P);
-                                        Log.d(isHost+" Has", ""+ gExp);
-                                        Log.d(isHost+" Has", ""+ resI);
-
-
                                         authComplete(K,otherNonce);
                                     }
-                                    else{
-                                        Log.d(tag,"Nonces do not match!");
-                                    }
+                                    else{ Log.d(tag,"Nonces do not match!"); }
 
-                                }else{
-                                    Log.d(tag,"Signatures don't match");
-                                }
-
-
-
+                                }else{ Log.d(tag,"Signatures don't match"); }
                             }
                             catch(Exception e){
                                 Log.d(tag, "Message 5 error parsing!");
-                                Log.d(tag,messageObj.toString());
                                 Log.d(tag+"ERROR", e.toString());
                             }
                         }
-                        else{
-                            Log.d(tag, "Message 5 not as expected!");
-                        }
+                        else{ Log.d(tag, "Message 5 not as expected!"); }
                         break;
                     default:
                         Log.d(tag,"default");
@@ -341,26 +281,18 @@ public class AuthService {
                                 Log.d(tag, "Message 2 received as expected");
                                 otherCert = protocolUtils.convertBase64StringToCert(certString);
 
-
-                                BigInteger Tseq = protocolUtils.generateNonce(128);
-
-
+                                BigInteger Tseq = protocolUtils.generateBigint(128);
 
                                 String aidString = "{ID:'"+android_id+"',NonceI:'"+myNonce+"'}";
-                                Log.d("STRING",aidString);
-
+                                Log.d(tag+"AID-string",aidString);
                                 byte[] encAID = protocolUtils.ecEncrypt(aidString,otherCert.getPublicKey());
                                 String AID = Base64.getEncoder().encodeToString(encAID);
 
-
                                 String message = "{AID:'"+AID+"',NonceI:'"+myNonce+"',Tseq:'"+Tseq+"'}";
-
                                 Log.d(tag,message);
-//                                serverClient.writeProtocol(Base64.getEncoder().encodeToString(messageToSend).getBytes(StandardCharsets.UTF_8));
                                 serverClient.writeProtocol(message.getBytes(StandardCharsets.UTF_8));
                                 authStep++;
-
-                            } catch (JSONException | CertificateException | NoSuchPaddingException | NoSuchAlgorithmException | InvalidKeyException | BadPaddingException | IllegalBlockSizeException | NoSuchProviderException e) {
+                            } catch (Exception e) {
                                 Log.d(tag, "Message 2 error");
                                 Log.d(tag+"ERROR", e.toString());
                                 e.printStackTrace();
@@ -372,43 +304,27 @@ public class AuthService {
                         break;
                     //Receive message 4 send message 5
                     case 1:
-
                         if(messageObj != null){
                             try {
-
-
                                 otherNonce = new BigInteger(messageObj.getString("NonceJ"));
                                 String signed = messageObj.getString("signed");
                                 String plain = messageObj.getString("plain");
                                 byte[] signedBytes = Base64.getDecoder().decode(signed);
-
-                                Boolean verify = protocolUtils.verify(plain,signedBytes,otherCert.getPublicKey());
-
+                                boolean verify = protocolUtils.verify(plain,signedBytes,otherCert.getPublicKey());
                                 if(verify){
                                     Log.d(tag,"Signature verification successful");
-
                                     byte[] toDec = Base64.getDecoder().decode(plain);
                                     String dec = protocolUtils.ecDecrypt(toDec,privKey);
-
-                                    Log.d("Decryption",dec);
-
+                                    Log.d(tag+"Decryption",dec);
                                     JSONObject decMessageObj = new JSONObject(dec);
-
                                     BigInteger returnedNonce = new BigInteger(decMessageObj.getString("NonceI"));
-
                                     if(returnedNonce.equals(myNonce)){
                                         Log.d(tag,"Returned nonce matches");
-
                                         BigInteger resJ = new BigInteger(decMessageObj.getString("resJ"));
                                         Log.d(tag, "Message 4 received as expected");
 
-
                                         gExp = G.modPow(exp,P);
                                         BigInteger K = resJ.modPow(exp,P);
-
-                                        Log.d(isHost+" Has", ""+ gExp);
-                                        Log.d(isHost+" Has", ""+ resJ);
-
 
                                         String strToEnc = "{NonceJ:'"+otherNonce+"',resI:'"+gExp+"'}";
                                         byte[] encrypted = protocolUtils.ecEncrypt(strToEnc,otherCert.getPublicKey());
@@ -416,28 +332,16 @@ public class AuthService {
                                         byte[] signBytes = protocolUtils.ecSign(encString,privKey);
 
                                         String signString = Base64.getEncoder().encodeToString(signBytes);
-
                                         String finString = "{signed:'"+signString+"',plain:'"+encString+"'}";
-
                                         serverClient.writeProtocol(finString.getBytes(StandardCharsets.UTF_8));
                                         authStep++;
-
                                         authComplete(K,myNonce);
                                     }
-                                    else{
-                                        Log.d(tag,"Nonces do not match!");
-                                    }
+                                    else{ Log.d(tag,"Nonces do not match!"); }
                                 }
-
-
-                            } catch (Exception e) {
-                                Log.d(tag, "Message 4 error parsing");
-                                Log.d(tag+"ERROR", e.toString());
-                            }
+                            } catch (Exception e) { Log.d(tag, "Message 4 error parsing"); }
                         }
-                        else{
-                            Log.d(tag, "Message 4 not as expected!");
-                        }
+                        else{ Log.d(tag, "Message 4 not as expected!"); }
                         break;
                     default:
                         Log.d(tag,"default");

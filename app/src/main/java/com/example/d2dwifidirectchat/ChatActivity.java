@@ -40,15 +40,13 @@ public class ChatActivity extends AppCompatActivity {
     ServerClient serverClient;
     LinearLayout messageLayout;
     Button disconnectButton;
+    String tag;
 
     ArrayList<MessagePair> messages = new ArrayList<MessagePair>();
     ChatMessagesAdapter adapter;
 
     Boolean isHost;
     String hostAddress;
-
-//    WifiP2pManager manager;
-//    WifiP2pManager.Channel channel;
 
     Activity thisAct;
     Context thisContext;
@@ -74,6 +72,8 @@ public class ChatActivity extends AppCompatActivity {
 
         initComponents();
         setUpServer();
+        if(isHost) tag = "CHAT-HOST";
+        else tag = "CHAT-CLIENT";
 
         authService = new AuthService(serverClient,isHost,authStrings, myInterface, thisContext);
         serverClient.setMessagesChangedListener(authService.incomingMessagesListener);
@@ -152,7 +152,7 @@ public class ChatActivity extends AppCompatActivity {
                                 MessagePair mPair =  new MessagePair(deviceName, escapedMessage);
                                 messages.add(new MessagePair("Me", escapedMessage));
                                 String encryptedMessage = protocolUtils.encrypt(mPair.toString().getBytes(StandardCharsets.UTF_8), sharedKey);
-                                Log.d("sending-message", encryptedMessage);
+                                Log.d(tag+"-SENT", encryptedMessage);
                                 serverClient.write(encryptedMessage.getBytes(StandardCharsets.UTF_8));
                             } catch (Exception e) {
                                 Log.d("Encryption", "Error encrypting message!");

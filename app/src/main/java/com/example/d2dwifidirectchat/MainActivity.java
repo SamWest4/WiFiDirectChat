@@ -53,6 +53,8 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        //Adding provider for encryption implementation
         Security.removeProvider("BC");
         Security.addProvider(new BouncyCastleProvider());
 
@@ -125,6 +127,7 @@ public class MainActivity extends AppCompatActivity {
         intentFilter.addAction(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION);
         intentFilter.addAction(WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION);
         intentFilter.addAction(WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION);
+
     }
 
 
@@ -141,7 +144,6 @@ public class MainActivity extends AppCompatActivity {
 
                 if(availableDevices.size() == 0){
                     connectionStatus.setText("No devices found");
-                    return;
                 }
 
 
